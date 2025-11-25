@@ -59,44 +59,50 @@ def init_db():
 # 2. INSERT SURAT
 # -------------------------------------------------
 def insert_letter(
-    nomor_internal,
-    uploader,
-    division,
-    status,
-    ai_nomor_pengirim,
-    ai_maksud,
-    ai_rekomendasi,
-    timestamp,
-    filename,
-    ocr_text,
+    nomor_internal=None,
+    uploader=None,
+    division=None,
+    status=None,
+    ai_nomor_pengirim=None,
+    ai_maksud=None,
+    ai_rekomendasi=None,
+    timestamp=None,
+    filename=None,
+    ocr_text=None,
+    file_path=None,   # <--- supaya kompatibel dengan pemanggilan lama
 ):
     """
     Simpan 1 surat ke tabel letters.
 
-    - nomor_internal: bisa None/"" -> akan dibuat otomatis format YYYY/MM/XXX
-    - timestamp: bisa None/"" -> akan diisi waktu sekarang
+    - nomor_internal: boleh None -> dibuat otomatis YYYY/MM/NNN
+    - timestamp: boleh None -> pakai waktu sekarang
+    - filename:
+        - kalau None tapi file_path ada -> otomatis pakai nama file dari file_path
     - return: (letter_id, nomor_internal)
     """
+    import os  # pastikan ada di atas file juga boleh
 
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
-    # kalau timestamp tidak diisi, pakai waktu sekarang
+    # waktu sekarang
     if not timestamp:
         now = datetime.now()
         timestamp = now.isoformat(timespec="seconds")
     else:
-        # kalau timestamp sudah ada, tetap parsing sedikit untuk kebutuhan nomor_internal
         try:
             now = datetime.fromisoformat(timestamp)
         except Exception:
             now = datetime.now()
 
+    # kalau filename belum diisi tapi kita dapat file_path
+    if not filename and file_path:
+        filename = os.path.basename(file_path)
+
     # auto-generate nomor_internal kalau belum ada
     if not nomor_internal:
         year = now.year
         month = now.month
-        # hitung jumlah surat bulan ini untuk sequence
         prefix = f"{year}-{month:02d}"
         c.execute(
             "SELECT COUNT(*) FROM letters WHERE substr(timestamp, 1, 7) = ?",
@@ -139,8 +145,6 @@ def insert_letter(
     conn.close()
 
     return letter_id, nomor_internal
-
-
 # -------------------------------------------------
 # 3. INSERT DISPOSISI
 # -------------------------------------------------
